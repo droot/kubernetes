@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strings"
 
 	"github.com/golang/glog"
 
@@ -122,19 +123,46 @@ func (c *podPresetPlugin) Admit(a admission.Attributes) error {
 		return fmt.Errorf("filtering pod presets failed: %v", err)
 	}
 
+	presetsByContainer := podPresetsByContainer(pod, matchingPPs)
+
 	// detect merge conflict
-	err = safeToApplyPodPresetsOnPod(pod, matchingPPs)
+	err = safeToApplyPodPresetsOnPod(pod, matchingPPs, presetsByContainer)
 	if err != nil {
 		// conflict, ignore the error, but raise an event
 		glog.Warningf("conflict occurred while applying podpresets on pod: %v err: %v", pod.Name, err)
 		return nil
 	}
 
-	applyPodPresetsOnPod(pod, matchingPPs)
+	applyPodPresetsOnPod(pod, matchingPPs, presetsByContainer)
 
 	glog.Infof("applied podpresets successfully on Pod: %s ", pod.GetGenerateName())
 
 	return nil
+}
+
+func podPresetsByContainer(pod *api.Pod, podPresets []*settings.PodPreset) map[string][]*settings.PodPreset {
+	podPresetsForCtrs := map[string][]*settings.PodPreset{}
+
+	for _, ctr := range pod.Spec.Containers {
+		podPresetsForCtrs[ctr.Name] = []*settings.PodPreset{}
+	}
+
+	for _, ctr := range pod.Spec.Containers {
+		for _, pp := range podPresets {
+			if pp.Spec.AppContainerSelector == nil {
+				podPresetsForCtrs[ctr.Name] = append(podPresetsForCtrs[ctr.Name], pp)
+				continue
+			}
+			for _, ctrName := range pp.Spec.AppContainerSelector.MatchNames {
+				if ctrName == "*" || strings.EqualFold(ctrName, ctr.Name) {
+					// TODO: check if case insensitive match is correct behavior ?
+					podPresetsForCtrs[ctr.Name] = append(podPresetsForCtrs[ctr.Name], pp)
+					break
+				}
+			}
+		}
+	}
+	return podPresetsForCtrs
 }
 
 func filterPodPresets(list []*settings.PodPreset, pod *api.Pod) ([]*settings.PodPreset, error) {
@@ -156,14 +184,14 @@ func filterPodPresets(list []*settings.PodPreset, pod *api.Pod) ([]*settings.Pod
 	return matchingPPs, nil
 }
 
-func safeToApplyPodPresetsOnPod(pod *api.Pod, podPresets []*settings.PodPreset) error {
+func safeToApplyPodPresetsOnPod(pod *api.Pod, podPresets []*settings.PodPreset, presetsByContainer map[string][]*settings.PodPreset) error {
 	var errs []error
 
 	if _, err := mergeVolumes(pod.Spec.Volumes, podPresets); err != nil {
 		errs = append(errs, err)
 	}
 	for _, ctr := range pod.Spec.Containers {
-		if err := safeToApplyPodPresetsOnContainer(&ctr, podPresets); err != nil {
+		if err := safeToApplyPodPresetsOnContainer(&ctr, presetsByContainer[ctr.Name]); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -340,12 +368,12 @@ func (c *podPresetPlugin) addEvent(pod *api.Pod, pip *settings.PodPreset, messag
 // applyPodPresetsOnPod updates the PodSpec with merged information from all the
 // applicable PodPresets. It ignores the errors of merge functions because merge
 // errors have already been checked in safeToApplyPodPresetsOnPod function.
-func applyPodPresetsOnPod(pod *api.Pod, podPresets []*settings.PodPreset) {
+func applyPodPresetsOnPod(pod *api.Pod, podPresets []*settings.PodPreset, presetsByContainer map[string][]*settings.PodPreset) {
 	volumes, _ := mergeVolumes(pod.Spec.Volumes, podPresets)
 	pod.Spec.Volumes = volumes
 
 	for i, ctr := range pod.Spec.Containers {
-		applyPodPresetsOnContainer(&ctr, podPresets)
+		applyPodPresetsOnContainer(&ctr, presetsByContainer[ctr.Name])
 		pod.Spec.Containers[i] = ctr
 	}
 

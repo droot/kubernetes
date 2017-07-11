@@ -30,6 +30,16 @@ import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 // Package-wide variables from generator "generated".
 option go_package = "v1alpha1";
 
+// ContainerSelector represents container selector criterion that can be applied on
+// list of v1.Container to select containers.
+message ContainerSelector {
+  // MatchNames is a list of container names to be matched to. This selector
+  // returns a match if container name matches any of the names in this list.
+  // Special string “*” is treated as match ANY.
+  // Empty or nil list is treated as match NOTHING.
+  repeated string matchNames = 1;
+}
+
 // PodPreset is a policy resource that defines additional runtime
 // requirements for a Pod.
 message PodPreset {
@@ -56,6 +66,13 @@ message PodPresetSpec {
   // Selector is a label query over a set of resources, in this case pods.
   // Required.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 1;
+
+  // AppContainerSelector is a ContainerSelector to select app containers of a
+  // PodSpec for injecting information into.
+  // If not specified, it will default to EmptyContainerSelector which matches
+  // any app-container in the PodSpec.
+  // +optional
+  optional ContainerSelector omitempty = 6;
 
   // Env defines the collection of EnvVar to inject into containers.
   // +optional

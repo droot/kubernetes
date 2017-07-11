@@ -39,6 +39,14 @@ type PodPresetSpec struct {
 	// Selector is a label query over a set of resources, in this case pods.
 	// Required.
 	Selector metav1.LabelSelector
+
+	// AppContainerSelector is a ContainerSelector to select app containers of a
+	// PodSpec for injecting information into.
+	// If not specified, it will default to EmptyContainerSelector which matches
+	// any app-container in the PodSpec.
+	// +optional
+	AppContainerSelector *ContainerSelector `json:"omitempty"`
+
 	// Env defines the collection of EnvVar to inject into containers.
 	// +optional
 	Env []api.EnvVar
@@ -60,4 +68,16 @@ type PodPresetList struct {
 	metav1.ListMeta
 
 	Items []PodPreset
+}
+
+// ContainerSelector represents container selector criterion that can be applied on
+// list of v1.Container to select containers.
+type ContainerSelector struct {
+	// MatchNames is a list of container names to be matched to. This selector
+	// returns a match if container name matches any of the names in this list.
+	// Special string “*” is treated as match ANY.
+	// Empty or nil list is treated as match NOTHING.
+	MatchNames []string
+
+	// in future matchExpressions support can also be added to enable set expresssions.
 }

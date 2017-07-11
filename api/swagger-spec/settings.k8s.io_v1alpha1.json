@@ -1197,10 +1197,17 @@
    "v1alpha1.PodPresetSpec": {
     "id": "v1alpha1.PodPresetSpec",
     "description": "PodPresetSpec is a description of a pod preset.",
+    "required": [
+     "omitempty"
+    ],
     "properties": {
      "selector": {
       "$ref": "v1.LabelSelector",
       "description": "Selector is a label query over a set of resources, in this case pods. Required."
+     },
+     "omitempty": {
+      "$ref": "v1alpha1.ContainerSelector",
+      "description": "AppContainerSelector is a ContainerSelector to select app containers of a PodSpec for injecting information into. If not specified, it will default to EmptyContainerSelector which matches any app-container in the PodSpec."
      },
      "env": {
       "type": "array",
@@ -1271,6 +1278,22 @@
        "type": "string"
       },
       "description": "values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch."
+     }
+    }
+   },
+   "v1alpha1.ContainerSelector": {
+    "id": "v1alpha1.ContainerSelector",
+    "description": "ContainerSelector represents container selector criterion that can be applied on list of v1.Container to select containers.",
+    "required": [
+     "MatchNames"
+    ],
+    "properties": {
+     "MatchNames": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "MatchNames is a list of container names to be matched to. This selector returns a match if container name matches any of the names in this list. Special string “*” is treated as match ANY. Empty or nil list is treated as match NOTHING."
      }
     }
    },

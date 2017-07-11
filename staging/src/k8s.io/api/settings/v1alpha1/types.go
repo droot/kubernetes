@@ -40,6 +40,13 @@ type PodPresetSpec struct {
 	// Required.
 	Selector metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,1,opt,name=selector"`
 
+	// AppContainerSelector is a ContainerSelector to select app containers of a
+	// PodSpec for injecting information into.
+	// If not specified, it will default to EmptyContainerSelector which matches
+	// any app-container in the PodSpec.
+	// +optional
+	AppContainerSelector *ContainerSelector `json:"AppContainerSelector,omitempty" protobuf:"bytes,6,opt,name=appContainerSelector"`
+
 	// Env defines the collection of EnvVar to inject into containers.
 	// +optional
 	Env []v1.EnvVar `json:"env,omitempty" protobuf:"bytes,2,rep,name=env"`
@@ -64,4 +71,16 @@ type PodPresetList struct {
 
 	// Items is a list of schema objects.
 	Items []PodPreset `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// ContainerSelector represents container selector criterion that can be applied on
+// list of v1.Container to select containers.
+type ContainerSelector struct {
+	// MatchNames is a list of container names to be matched to. This selector
+	// returns a match if container name matches any of the names in this list.
+	// Special string “*” is treated as match ANY.
+	// Empty or nil list is treated as match NOTHING.
+	MatchNames []string `protobuf:"bytes,1,rep,name=matchNames"`
+
+	// in future matchExpressions support can also be added to enable set expresssions.
 }
